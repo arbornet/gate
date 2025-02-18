@@ -50,11 +50,5 @@ install: gate gate.1
 	$(INSTALL) -m 644 gate.help $(datadir)
 	$(INSTALL) -m 644 gate.1 $(mandir)/man1
 
-gate.tar: $(DIST)
-	tar cvf gate.tar $(DIST)
-
 clean:
 	rm -f $(OBJS) gate
-
-distclean:	clean
-	-rm -f Makefile config.h config.log config.status config.cache

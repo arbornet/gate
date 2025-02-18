@@ -42,16 +42,11 @@ void initterm()
 {
     register char *bp, *pad, *term;
     char *tp;
-#ifdef GREX
-    int t= 't';	/* workaround for ridiculous bug in Grex gcc */
-#endif /*GREX*/
-#ifdef TIOCGWINSZ
     struct winsize x;
 
     ioctl(2,TIOCGWINSZ,&x);
     mycols= x.ws_col;
     mylines= x.ws_row;
-#endif /*TIOCGWINSZ*/
 
     /* Get the termcap entry */
     bp = (char *) malloc(1024);

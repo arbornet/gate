@@ -1,8 +1,6 @@
 #include "gate.h"
 
-#ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
-#endif
 
 #ifndef WIFEXITED
 #define WIFEXITED(s)   (((s) & 0xff) == 0)
@@ -26,35 +24,21 @@ void dopipe(char *cmd)
 {
     FILE *cfp;
     int ch;
-#ifdef HAVE_SIGACTION
     struct sigaction old_intr, old_quit;
-#else
-    RETSIGTYPE (*old_intr)(), (*old_quit)();
-#endif
 
     if ((cfp= pipe_thru(cmd)) == NULL) return;
 
     /* Copy the result in...with interupts disabled */
-#ifdef HAVE_SIGACTION
     sigact(SIGINT, SIG_IGN, &old_intr);
     sigact(SIGQUIT, SIG_IGN, &old_quit);
-#else
-    old_intr = signal(SIGINT,SIG_IGN);
-    old_quit = signal(SIGQUIT,SIG_IGN);
-#endif
 
     emptyfile();
     while ((ch= fgetc(cfp)) != EOF)
 	    putc(ch,tfp);
     fclose(cfp);
 
-#ifdef HAVE_SIGACTION
     sigaction(SIGINT, &old_intr, NULL);
     sigaction(SIGQUIT, &old_quit, NULL);
-#else
-    signal(SIGINT,old_intr);
-    signal(SIGQUIT,old_quit);
-#endif
 }
 
 
@@ -74,12 +58,7 @@ FILE *pipe_thru(char *cmd)
      * interupts better
      */
     strcpy(tmpname, "/tmp/gateXXXXXX");
-#if HAVE_MKSTEMP
     cfp= fdopen(mkstemp(tmpname),"w+");
-#else
-    mktemp(tmpname);
-    cfp= fopen(tmpname,"w+");
-#endif
     if (cfp == NULL)
     {
 	printf("Cannot open file %s.\n",tmpname);
@@ -119,7 +98,6 @@ int have_stopped;
 
 RETSIGTYPE tmpsusp()
 {
-#ifdef HAVE_SIGACTION
     sigset_t set;
 
     sigact(SIGTSTP, SIG_DFL, NULL);
@@ -127,29 +105,10 @@ RETSIGTYPE tmpsusp()
     sigemptyset(&set);
     sigaddset(&set,SIGTSTP);
     sigprocmask(SIG_UNBLOCK, &set, NULL);
-#else
-#ifdef HAVE_SIGMASK
-    int mask= sigblock(sigmask(SIGTSTP));
-#endif
-
-    signal(SIGTSTP,SIG_DFL);
-#ifdef HAVE_SIGMASK
-    sigsetmask(0);
-#endif
-#endif
     kill(0,SIGTSTP);
 
     /* STOP HERE */
-
-#ifdef HAVE_SIGACTION
     sigact(SIGTSTP, tmpsusp, NULL);
-#else
-#ifdef HAVE_SIGMASK
-    sigsetmask(mask);
-#endif
-    signal(SIGTSTP,tmpsusp);
-#endif
-
     have_stopped= 1;
 }
 #endif
@@ -169,34 +128,18 @@ int usystem(char *cmd, int noshell, int cook, int sin, int sout)
     register pid_t cpid,wpid;
     int status;
     int was_cbreak= in_cbreak;
-#ifdef HAVE_SIGACTION
     struct sigaction old_intr, old_quit, old_susp;
 
     sigact(SIGINT, SIG_IGN, &old_intr);
     sigact(SIGQUIT, SIG_IGN, &old_quit);
-#else
-    RETSIGTYPE (*old_intr)(), (*old_quit)(), (*old_susp)();
-
-    old_intr = signal(SIGINT,SIG_IGN);
-    old_quit = signal(SIGQUIT,SIG_IGN);
-#endif
 
     if (cook) set_mode(0);
 
-#ifdef HAVE_SIGACTION
 #ifdef PICO_BUG
     have_stopped= 0;
     sigact(SIGTSTP, tmpsusp, &old_susp);
 #else
     sigact(SIGTSTP, SIG_DFL, &old_susp);
-#endif
-#else
-#ifdef PICO_BUG
-    have_stopped= 0;
-    old_susp = signal(SIGTSTP,tmpsusp);
-#else
-    old_susp = signal(SIGTSTP,SIG_DFL);
-#endif
 #endif
 
     if ((cpid = fork()) == 0)
@@ -229,15 +172,9 @@ int usystem(char *cmd, int noshell, int cook, int sin, int sout)
 	if (wpid != -1) initmodes();
 	if (was_cbreak) set_mode(1);
     }
-#ifdef HAVE_SIGACTION
     sigaction(SIGINT,&old_intr,NULL);
     sigaction(SIGQUIT,&old_quit,NULL);
     sigaction(SIGTSTP,&old_susp,NULL);
-#else
-    signal(SIGINT,old_intr);
-    signal(SIGQUIT,old_quit);
-    signal(SIGTSTP,old_susp);
-#endif
 
     return ((wpid != -1 && WIFEXITED(status)) ? WEXITSTATUS(status) : 127);
 }
@@ -284,24 +221,6 @@ void execcmd(char *cmd, int noshell)
 	fprintf(stderr,"Cannot execute shell %s\n",shell);
     }
 }
-
-
-/* Supply this for those few stone-age systems that don't have a dup2()
- * call.
- */
-
-#ifndef HAVE_DUP2
-int dup2(int old, int new)
-{
-    if (old == new) return 0;
-    close(new);
-    if (fcntl(old,F_DUPFD,new) != new)
-	    return -1;
-    else
-	    return new;
-}
-#endif /* !HAVE_DUP2 */
-
 
 /* UPOPEN/UPCLOSE/UPKILL - Run command on a pipe
  *
