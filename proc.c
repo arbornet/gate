@@ -3,44 +3,43 @@
 #include <sys/wait.h>
 
 #ifndef WIFEXITED
-#define WIFEXITED(s)   (((s) & 0xff) == 0)
+#define WIFEXITED(s) (((s) & 0xff) == 0)
 #endif
 #ifndef WEXITSTATUS
 #define WEXITSTATUS(s) (((s) >> 8) & 0xff)
 #endif
 #ifndef WIFSTOPPED
-#define WIFSTOPPED(s)  (((s) & 0xff) == 0x7f && (((s) >> 8) & 0xff) != 0)
+#define WIFSTOPPED(s) (((s) & 0xff) == 0x7f && (((s) >> 8) & 0xff) != 0)
 #endif
 #ifndef WSTOPSIG
 #define WSTOPSIG WEXITSTATUS
 #endif
 
-
 /* DOPIPE - Run the process with the current file as input, and replace the
  * file with its output.  It doesn't really do any piping.
  */
 
-void dopipe(char *cmd)
+void
+dopipe(char *cmd)
 {
-    FILE *cfp;
-    int ch;
-    struct sigaction old_intr, old_quit;
+	FILE *cfp;
+	int ch;
+	struct sigaction old_intr, old_quit;
 
-    if ((cfp= pipe_thru(cmd)) == NULL) return;
+	if ((cfp = pipe_thru(cmd)) == NULL)
+		return;
 
-    /* Copy the result in...with interupts disabled */
-    sigact(SIGINT, SIG_IGN, &old_intr);
-    sigact(SIGQUIT, SIG_IGN, &old_quit);
+	/* Copy the result in...with interupts disabled */
+	sigact(SIGINT, SIG_IGN, &old_intr);
+	sigact(SIGQUIT, SIG_IGN, &old_quit);
 
-    emptyfile();
-    while ((ch= fgetc(cfp)) != EOF)
-	    putc(ch,tfp);
-    fclose(cfp);
+	emptyfile();
+	while ((ch = fgetc(cfp)) != EOF) putc(ch, tfp);
+	fclose(cfp);
 
-    sigaction(SIGINT, &old_intr, NULL);
-    sigaction(SIGQUIT, &old_quit, NULL);
+	sigaction(SIGINT, &old_intr, NULL);
+	sigaction(SIGQUIT, &old_quit, NULL);
 }
-
 
 /* PIPE_THRU - This returns the descriptor of an open file containing the
  * result of piping the current buffer through the given command.  The file
@@ -48,71 +47,70 @@ void dopipe(char *cmd)
  * removes it.
  */
 
-FILE *pipe_thru(char *cmd)
+FILE *
+pipe_thru(char *cmd)
 {
-    char tmpname[20];
-    FILE *cfp;
-    long oldt;
+	char tmpname[20];
+	FILE *cfp;
+	long oldt;
 
-    /* We could use a call to make_copy() here, but this method survives
-     * interupts better
-     */
-    strcpy(tmpname, "/tmp/gateXXXXXX");
-    cfp= fdopen(mkstemp(tmpname),"w+");
-    if (cfp == NULL)
-    {
-	printf("Cannot open file %s.\n",tmpname);
-	return NULL;
-    }
-    unlink(tmpname);
+	/* We could use a call to make_copy() here, but this method survives
+	 * interupts better
+	 */
+	strcpy(tmpname, "/tmp/gateXXXXXX");
+	cfp = fdopen(mkstemp(tmpname), "w+");
+	if (cfp == NULL) {
+		printf("Cannot open file %s.\n", tmpname);
+		return NULL;
+	}
+	unlink(tmpname);
 
-    oldt= ftell(tfp);
-    fseek(tfp,0L,0);
-    if (usystem(cmd,0,1,fileno(tfp),fileno(cfp)) != 0)
-	return NULL;
+	oldt = ftell(tfp);
+	fseek(tfp, 0L, 0);
+	if (usystem(cmd, 0, 1, fileno(tfp), fileno(cfp)) != 0)
+		return NULL;
 
-    fseek(cfp,0L,0);
-    fseek(tfp,oldt,0);
-    return cfp;
+	fseek(cfp, 0L, 0);
+	fseek(tfp, oldt, 0);
+	return cfp;
 }
-
 
 /* DOSYSTEM - Do a system call
  */
-int dosystem(char *cmd)
+int
+dosystem(char *cmd)
 {
-    int rc;
+	int rc;
 
-    *firstin(cmd,"\n")= '\0';
-    if (*cmd == '\0')
-	rc= usystem(getenv("SHELL"),0,1,-1,-1);
-    else
-	rc= usystem(cmd,0,1,-1,-1);
-    lines_above= 0;
-    return (rc==127);
+	*firstin(cmd, "\n") = '\0';
+	if (*cmd == '\0')
+		rc = usystem(getenv("SHELL"), 0, 1, -1, -1);
+	else
+		rc = usystem(cmd, 0, 1, -1, -1);
+	lines_above = 0;
+	return (rc == 127);
 }
-
 
 #ifdef PICO_BUG
 int have_stopped;
 
-RETSIGTYPE tmpsusp()
+RETSIGTYPE
+tmpsusp()
 {
-    sigset_t set;
+	sigset_t set;
 
-    sigact(SIGTSTP, SIG_DFL, NULL);
+	sigact(SIGTSTP, SIG_DFL, NULL);
 
-    sigemptyset(&set);
-    sigaddset(&set,SIGTSTP);
-    sigprocmask(SIG_UNBLOCK, &set, NULL);
-    kill(0,SIGTSTP);
+	sigemptyset(&set);
+	sigaddset(&set, SIGTSTP);
+	sigprocmask(SIG_UNBLOCK, &set, NULL);
+	kill(0, SIGTSTP);
 
-    /* STOP HERE */
-    sigact(SIGTSTP, tmpsusp, NULL);
-    have_stopped= 1;
+	/* STOP HERE */
+	sigact(SIGTSTP, tmpsusp, NULL);
+	have_stopped = 1;
 }
 #endif
-
 
 /* USYSTEM:  A modified version of the system() command.  If noshell is true,
  * then it executes the command directly, without starting a shell.  If sin or
@@ -123,103 +121,109 @@ RETSIGTYPE tmpsusp()
  * may have been changed) and then restore cbreak mode, if we were in it.
  */
 
-int usystem(char *cmd, int noshell, int cook, int sin, int sout)
+int
+usystem(char *cmd, int noshell, int cook, int sin, int sout)
 {
-    register pid_t cpid,wpid;
-    int status;
-    int was_cbreak= in_cbreak;
-    struct sigaction old_intr, old_quit, old_susp;
+	register pid_t cpid, wpid;
+	int status;
+	int was_cbreak = in_cbreak;
+	struct sigaction old_intr, old_quit, old_susp;
 
-    sigact(SIGINT, SIG_IGN, &old_intr);
-    sigact(SIGQUIT, SIG_IGN, &old_quit);
+	sigact(SIGINT, SIG_IGN, &old_intr);
+	sigact(SIGQUIT, SIG_IGN, &old_quit);
 
-    if (cook) set_mode(0);
+	if (cook)
+		set_mode(0);
 
 #ifdef PICO_BUG
-    have_stopped= 0;
-    sigact(SIGTSTP, tmpsusp, &old_susp);
+	have_stopped = 0;
+	sigact(SIGTSTP, tmpsusp, &old_susp);
 #else
-    sigact(SIGTSTP, SIG_DFL, &old_susp);
+	sigact(SIGTSTP, SIG_DFL, &old_susp);
 #endif
 
-    if ((cpid = fork()) == 0)
-    {
-	if (sin >= 0) dup2(sin,0);
-	if (sout >= 0) dup2(sout,1);
-	execcmd(cmd,noshell);
-	exit(127);
-    }
-#ifdef PICO_BUG
-    while (((wpid = wait3(&status,WUNTRACED,NULL)) != -1 || errno == EINTR) &&
-           (wpid != cpid || WIFSTOPPED(status)))
-    {
-	/* Check for god-danged "pico" which suspends itself but not it's
-	 * process group - if child suspends, but I don't, suspend myself */
-	if (wpid == cpid && WIFSTOPPED(status) && WSTOPSIG(status) == SIGTSTP)
-	{
-		sleep(2);
-		if (!have_stopped) kill(0,SIGTSTP);
-		have_stopped= 0;
+	if ((cpid = fork()) == 0) {
+		if (sin >= 0)
+			dup2(sin, 0);
+		if (sout >= 0)
+			dup2(sout, 1);
+		execcmd(cmd, noshell);
+		exit(127);
 	}
-    }
+#ifdef PICO_BUG
+	while (((wpid = wait3(&status, WUNTRACED, NULL)) != -1 ||
+	           errno == EINTR) &&
+	       (wpid != cpid || WIFSTOPPED(status))) {
+		/* Check for god-danged "pico" which suspends itself but not
+		 * it's process group - if child suspends, but I don't, suspend
+		 * myself */
+		if (wpid == cpid && WIFSTOPPED(status) &&
+		    WSTOPSIG(status) == SIGTSTP) {
+			sleep(2);
+			if (!have_stopped)
+				kill(0, SIGTSTP);
+			have_stopped = 0;
+		}
+	}
 #else
-    while (((wpid= wait(&status)) != -1 || errno == EINTR) && wpid != cpid)
-	;
+	while (
+	    ((wpid = wait(&status)) != -1 || errno == EINTR) && wpid != cpid);
 #endif
 
-    if (cook)
-    {
-	if (wpid != -1) initmodes();
-	if (was_cbreak) set_mode(1);
-    }
-    sigaction(SIGINT,&old_intr,NULL);
-    sigaction(SIGQUIT,&old_quit,NULL);
-    sigaction(SIGTSTP,&old_susp,NULL);
+	if (cook) {
+		if (wpid != -1)
+			initmodes();
+		if (was_cbreak)
+			set_mode(1);
+	}
+	sigaction(SIGINT, &old_intr, NULL);
+	sigaction(SIGQUIT, &old_quit, NULL);
+	sigaction(SIGTSTP, &old_susp, NULL);
 
-    return ((wpid != -1 && WIFEXITED(status)) ? WEXITSTATUS(status) : 127);
+	return ((wpid != -1 && WIFEXITED(status)) ? WEXITSTATUS(status) : 127);
 }
 
-void execcmd(char *cmd, int noshell)
+void
+execcmd(char *cmd, int noshell)
 {
 
-    /* If there are no fancy characters in it, parse it ourselves */
-    if (noshell)
-    {
-	char *cmdv[200];
-	char *cp;
-	int i,j;
+	/* If there are no fancy characters in it, parse it ourselves */
+	if (noshell) {
+		char *cmdv[200];
+		char *cp;
+		int i, j;
 
-	/* Skip leading spaces */
-	cp= firstout(cmd," \t");
-	cmdv[i=0] = cp;
+		/* Skip leading spaces */
+		cp = firstout(cmd, " \t");
+		cmdv[i = 0] = cp;
 
-	/* Eliminate tailing newline - if any */
-	*firstin(cmd,"\n")= '\0';
+		/* Eliminate tailing newline - if any */
+		*firstin(cmd, "\n") = '\0';
 
-	/* Break up args at the spaces */
-	while (*(cp= firstin(cp," \t")) != '\0')
-	{
-	    *(cp++) = '\0';
-	    cp= firstout(cp," \t");
-	    if (*cp != '\0') cmdv[++i] = cp;
+		/* Break up args at the spaces */
+		while (*(cp = firstin(cp, " \t")) != '\0') {
+			*(cp++) = '\0';
+			cp = firstout(cp, " \t");
+			if (*cp != '\0')
+				cmdv[++i] = cp;
+		}
+
+		/* Ignore Null command */
+		if (cmdv[0] == cp)
+			return;
+		cmdv[i + 1] = NULL;
+
+		execvp(cmdv[0], cmdv);
+		fprintf(stderr, "Cannot execute %s.\n", cmdv[0]);
+	} else {
+		char *shell = getenv("SHELL");
+		if (shell == NULL)
+			shell = "/bin/sh";
+
+		execl(shell, shell, "-c", cmd, (char *)NULL);
+
+		fprintf(stderr, "Cannot execute shell %s\n", shell);
 	}
-
-	/* Ignore Null command */
-	if (cmdv[0] == cp) return;
-	cmdv[i+1] = NULL;
-
-	execvp(cmdv[0],cmdv);
-	fprintf(stderr,"Cannot execute %s.\n",cmdv[0]);
-    }
-    else
-    {
-	char *shell= getenv("SHELL");
-	if (shell == NULL) shell= "/bin/sh";
-
-	execl(shell,shell,"-c",cmd,(char *)NULL);
-
-	fprintf(stderr,"Cannot execute shell %s\n",shell);
-    }
 }
 
 /* UPOPEN/UPCLOSE/UPKILL - Run command on a pipe
@@ -232,50 +236,52 @@ void execcmd(char *cmd, int noshell)
  *    upkill() just murders the child process and returns.
  */
 
-FILE *f_lastpop= NULL;		/* current upopened stream  (NULL means none) */
-pid_t p_lastpop;		/* process id of last upopened command */
+FILE *f_lastpop = NULL; /* current upopened stream  (NULL means none) */
+pid_t p_lastpop;        /* process id of last upopened command */
 
-FILE *upopen(char *cmd, int noshell, char *mode)
+FILE *
+upopen(char *cmd, int noshell, char *mode)
 {
-int fd;
+	int fd;
 
-    if (f_lastpop) upclose();
+	if (f_lastpop)
+		upclose();
 
-    if (*mode == 'r')
-	p_lastpop= cmd_pipe(cmd, noshell, NULL, &fd);
-    else
-	p_lastpop= cmd_pipe(cmd, noshell, &fd, NULL);
+	if (*mode == 'r')
+		p_lastpop = cmd_pipe(cmd, noshell, NULL, &fd);
+	else
+		p_lastpop = cmd_pipe(cmd, noshell, &fd, NULL);
 
-    if (p_lastpop < 0)
-	return NULL;
-    else
-	return (f_lastpop=fdopen(fd,mode));
+	if (p_lastpop < 0)
+		return NULL;
+	else
+		return (f_lastpop = fdopen(fd, mode));
 }
 
-void upclose()
+void
+upclose()
 {
-    pid_t pid;
+	pid_t pid;
 
-    if (f_lastpop == NULL) return;
+	if (f_lastpop == NULL)
+		return;
 
-    fclose(f_lastpop);
-    f_lastpop=NULL;
-
-    /* Wait for it to terminate */
-    while ((pid=wait((int *)NULL)) != -1 && pid != p_lastpop )
-	    ;
-}
-
-void upkill()
-{
-    if (f_lastpop != NULL)
-    {
 	fclose(f_lastpop);
-	f_lastpop=NULL;
-	kill(p_lastpop,SIGTERM);
-    }
+	f_lastpop = NULL;
+
+	/* Wait for it to terminate */
+	while ((pid = wait((int *)NULL)) != -1 && pid != p_lastpop);
 }
 
+void
+upkill()
+{
+	if (f_lastpop != NULL) {
+		fclose(f_lastpop);
+		f_lastpop = NULL;
+		kill(p_lastpop, SIGTERM);
+	}
+}
 
 /* Run the given command and return the file descriptors of a pipe to write
  * to it's standard input, and one to read from it's standard output.  If
@@ -283,66 +289,66 @@ void upkill()
  * process id number, or -1 in case of failure.
  */
 
-pid_t cmd_pipe(char *cmd, int noshell, int *to, int *from)
+pid_t
+cmd_pipe(char *cmd, int noshell, int *to, int *from)
 {
-    int to_pipe[2], from_pipe[2];
-    pid_t child;
+	int to_pipe[2], from_pipe[2];
+	pid_t child;
 
-    /* Make the pipes */
-    if (to != NULL)
-    {
-	if (pipe(to_pipe)) return -1;
-	*to= to_pipe[1];
-    }
-
-    if (from != NULL)
-    {
-	if (pipe(from_pipe)) return -1;
-	*from= from_pipe[0];
-    }
-
-    switch (child= fork())
-    {
-    case 0:
-	/* Child - run command */
-	signal(SIGINT,SIG_IGN);
-	signal(SIGQUIT,SIG_IGN);
-
-	if (from != NULL)
-	{
-	    close(from_pipe[0]);
-	    if (dup2(from_pipe[1],1) == -1)
-	    {
-		fprintf(stderr, "Panic: can't dup \"from\" pipe\n");
-		exit(1);
-	    }
+	/* Make the pipes */
+	if (to != NULL) {
+		if (pipe(to_pipe))
+			return -1;
+		*to = to_pipe[1];
 	}
 
-	if (to != NULL)
-	{
-	    close(to_pipe[1]);
-	    if (dup2(to_pipe[0],0) == -1)
-	    {
-		fprintf(stderr, "Panic: can't dup \"to\" pipe\n");
-		exit(1);
-	    }
+	if (from != NULL) {
+		if (pipe(from_pipe))
+			return -1;
+		*from = from_pipe[0];
 	}
 
-	/* setuid(getuid());
-	   setgid(getgid()); */
-	execcmd(cmd,noshell);
-	exit(-1);
-    case -1:
-	/* Fork Failed */
-	close(to_pipe[0]);
-	close(to_pipe[1]);
-	close(from_pipe[0]);
-	close(from_pipe[1]);
-	return -1;
-    default:
-	/* Happy Parent Process after fork */
-	if (from != NULL) close(from_pipe[1]);
-	if (to != NULL) close(to_pipe[0]);
-	return child;
-    }
+	switch (child = fork()) {
+	case 0:
+		/* Child - run command */
+		signal(SIGINT, SIG_IGN);
+		signal(SIGQUIT, SIG_IGN);
+
+		if (from != NULL) {
+			close(from_pipe[0]);
+			if (dup2(from_pipe[1], 1) == -1) {
+				fprintf(
+				    stderr, "Panic: can't dup \"from\" pipe\n");
+				exit(1);
+			}
+		}
+
+		if (to != NULL) {
+			close(to_pipe[1]);
+			if (dup2(to_pipe[0], 0) == -1) {
+				fprintf(
+				    stderr, "Panic: can't dup \"to\" pipe\n");
+				exit(1);
+			}
+		}
+
+		/* setuid(getuid());
+		   setgid(getgid()); */
+		execcmd(cmd, noshell);
+		exit(-1);
+	case -1:
+		/* Fork Failed */
+		close(to_pipe[0]);
+		close(to_pipe[1]);
+		close(from_pipe[0]);
+		close(from_pipe[1]);
+		return -1;
+	default:
+		/* Happy Parent Process after fork */
+		if (from != NULL)
+			close(from_pipe[1]);
+		if (to != NULL)
+			close(to_pipe[0]);
+		return child;
+	}
 }
