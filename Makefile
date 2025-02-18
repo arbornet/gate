@@ -1,22 +1,22 @@
+# Generated automatically from Makefile.in by configure.
 SHELL= /bin/sh
 
-srcdir= @srcdir@
-VPATH= @srcdir@
+srcdir= .
 
-CC= @CC@
-INSTALL= @INSTALL@
+CC= cc
+INSTALL= /usr/bin/install -c
 LN= @LN_S@
 
-prefix= @prefix@
-exec_prefix= @exec_prefix@
-bindir= @bindir@
-mandir= @mandir@
-datadir= @datadir@
+prefix= /arbornet
+exec_prefix= ${prefix}
+bindir= ${exec_prefix}/bin
+mandir= ${prefix}/man
+datadir= ${prefix}/share
 
-CPPFLAGS= @CPPFLAGS@
-CFLAGS= @CFLAGS@
-LDFLAGS= @LDFLAGS@
-LIBS= @LIBS@
+CPPFLAGS= 
+CFLAGS= -g -O2
+LDFLAGS= 
+LIBS= -ltermcap 
 
 OBJS=main.o line.o syst.o util.o cmd.o file.o opt.o subs.o term.o proc.o spel.o
 SRCS=main.c line.c syst.c util.c cmd.c file.c opt.c subs.c term.c proc.c spel.c

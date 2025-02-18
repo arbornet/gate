@@ -207,7 +207,7 @@ int usystem(char *cmd, int noshell, int cook, int sin, int sout)
 	exit(127);
     }
 #ifdef PICO_BUG
-    while ((wpid = wait3(&status,WUNTRACED,NULL)) != -1 &&
+    while (((wpid = wait3(&status,WUNTRACED,NULL)) != -1 || errno == EINTR) &&
            (wpid != cpid || WIFSTOPPED(status)))
     {
 	/* Check for god-danged "pico" which suspends itself but not it's
@@ -220,7 +220,7 @@ int usystem(char *cmd, int noshell, int cook, int sin, int sout)
 	}
     }
 #else
-    while ((wpid= wait(&status)) != -1 && wpid != cpid)
+    while (((wpid= wait(&status)) != -1 || errno == EINTR) && wpid != cpid)
 	;
 #endif
 

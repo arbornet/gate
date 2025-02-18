@@ -87,7 +87,7 @@ int main(int argc,char **argv)
     wcol= 0;
     for (;;)
     {
-	if (getline(bf[sw], bf[!sw], &wcol, prompt))
+	if (ggetline(bf[sw], bf[!sw], &wcol, prompt))
 	{
 	    putchar('\n');
 	    done(RET_ENTER);

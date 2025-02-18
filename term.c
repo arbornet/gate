@@ -30,7 +30,6 @@ char *UP;		/* The cursor up string */
 int mycols= 0;		/* Screen size */
 int mylines= 0;		/* Screen size */
 char *tgetstr(), *tgoto(), *getenv();
-char *malloc();
 
 
 /* INITTERM()

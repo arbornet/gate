@@ -1,1 +1,1 @@
-./configure --prefix=/arbornet --with-aspell --with-picospan --with-editor=nano)
+./configure --prefix=/arbornet --with-aspell --with-yapp --with-editor=nano

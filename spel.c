@@ -152,6 +152,7 @@ empty_repl()
  * "replace" may be NULL to indicate that the word is to be ignored.
  */
 
+void
 add_repl(char *word, int word_len, char *replace)
 {
     struct repl *r;
@@ -370,7 +371,7 @@ int set_language(char *str, char *source)
 
 	/* Close the pipe and wait for child to terminate */
 	fclose(fp_from);
-	while ((pid=wait((int *)NULL)) != -1 && pid != child )
+	while (((pid=wait((int *)NULL)) != -1 || errno == EINTR) && pid != child )
 	    ;
     }
 
@@ -683,7 +684,7 @@ int fix_word(char *line, int offset, int *word_len,
     for(;;)
     {
 	subtask= 1;
-	if (getline(bf,NULL,&wcol,st))
+	if (ggetline(bf,NULL,&wcol,st))
 	{
 	    printf("\nSpell Check Interupted.\n");
 	    return 1;
