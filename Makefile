@@ -21,8 +21,7 @@ LIBS= -ltermcap
 OBJS=main.o line.o syst.o util.o cmd.o file.o opt.o subs.o term.o proc.o spel.o
 SRCS=main.c line.c syst.c util.c cmd.c file.c opt.c subs.c term.c proc.c spel.c
 
-DIST= README $(SRCS) gate.h config.h.in configure configure.in install-sh \
-    Makefile.in gate.1.C gate.help CHANGES
+DIST= README $(SRCS) gate.h gate.1.C gate.help CHANGES
 
 gate: $(OBJS)
 	$(CC) -o gate $(CFLAGS) $(OBJS) $(LIBS)
@@ -44,9 +43,9 @@ gate.1: gate.1.C
 
 
 install: gate gate.1
-	./install-sh -d $(bindir)
-	./install-sh -d $(datadir)
-	./install-sh -d $(mandir)/man1
+	install -d $(bindir)
+	install -d $(datadir)
+	install -d $(mandir)/man1
 	$(INSTALL) -m 755 gate $(bindir)
 	$(INSTALL) -m 644 gate.help $(datadir)
 	$(INSTALL) -m 644 gate.1 $(mandir)/man1
